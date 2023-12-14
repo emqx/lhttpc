@@ -68,7 +68,8 @@
 -spec connect(host(), integer(), socket_options(), timeout(), boolean()) ->
     {ok, socket()} | {error, atom()}.
 connect(Host, Port, Options, Timeout, true) ->
-    ssl:connect(Host, Port, Options, Timeout);
+    FixedOpts = fix_ssl_options(Options),
+    ssl:connect(Host, Port, FixedOpts, Timeout);
 connect(Host, Port, Options, Timeout, false) ->
     gen_tcp:connect(Host, Port, Options, Timeout).
 
@@ -202,3 +203,29 @@ close(Socket, true) ->
     ssl:close(Socket);
 close(Socket, false) ->
     gen_tcp:close(Socket).
+
+
+%% a hack-ish workaround on otp 26
+fix_ssl_options(Opts) ->
+    case opt_exists(cacertfile, Opts) of
+        true ->
+            Opts;
+        false ->
+            ensure_verify_none(Opts)
+    end.
+
+opt_exists(Key, Opts) ->
+    case lists:keyfind(Key, 1, Opts) of
+        {Key, _} ->
+            true;
+        false ->
+            false
+    end.
+
+ensure_verify_none(Opts) ->
+    case opt_exists(verify, Opts) of
+        true ->
+            Opts;
+        false ->
+            [{verify, verify_none} | Opts]
+    end.
