@@ -65,7 +65,7 @@ read_chunks(Module, Socket, Acc) ->
     case Module:recv(Socket, 0) of
         {ok, HexSizeExtension} ->
             case chunk_size(HexSizeExtension, []) of
-                0 -> 
+                0 ->
                     list_to_binary(lists:reverse(Acc));
                 Size ->
                     setopts(Module, Socket, [{packet, raw}]),
@@ -115,15 +115,16 @@ server_loop(Module, Socket, Request, Headers, Responders) ->
     end.
 
 listen(ssl, Addr, Family) ->
+    Dir = code:lib_dir(lhttpc),
     Opts = [
         Family,
         {packet, http},
         binary,
         {active, false},
         {ip, Addr},
-        {verify,0},
-        {keyfile, "../test/key.pem"},
-        {certfile, "../test/crt.pem"}
+        {verify,verify_none},
+        {keyfile, filename:join(Dir, "test/server.key")},
+        {certfile, filename:join(Dir, "test/server.pem")}
     ],
     {ok, LS} = ssl:listen(0, Opts),
     LS;
@@ -147,8 +148,8 @@ get_addr(Host, Family) ->
 
 accept(ssl, ListenSocket) ->
     {ok, Socket} = ssl:transport_accept(ListenSocket, 10000),
-    ok = ssl:ssl_accept(Socket),
-    Socket;
+    {ok, NewSock} = ssl:handshake(Socket, _Timeout = 10_000),
+    NewSock;
 accept(Module, ListenSocket) ->
     {ok, Socket} = Module:accept(ListenSocket, 1000),
     Socket.
