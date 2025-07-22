@@ -212,6 +212,17 @@ format_hdrs(Headers) ->
 %% Internal functions
 %%==============================================================================
 
+% http_uri:decode was deprecated in OTP 23
+-define(PCT_DECODE(X), http_uri:decode(X)).
+-ifdef (OTP_RELEASE).
+    -if(?OTP_RELEASE >= 24).
+        % uri_string:percent_decode is actually available in OTP 23.2, but
+        % there is no way to conditionally compile based on OTP minor version.
+        -undef(PCT_DECODE).
+        -define(PCT_DECODE(X), uri_string:percent_decode(X)).
+    -endif.
+-endif.
+
 %%------------------------------------------------------------------------------
 %% @private
 %% @doc

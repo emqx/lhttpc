@@ -164,10 +164,12 @@ execute(From, Host, Port, Ssl, Path, Method, Hdrs0, Body, Options) ->
         true ->
             DefSslOptions = application:get_env(lhttpc, ssl_options, []),
             UserSslOptions = proplists:get_value(ssl_options, Options, []),
-            EffectiveSslOpts = lists:ukeymerge(1,
+            EffectiveSslOpts0 = lists:ukeymerge(1,
                 lists:ukeysort(1, UserSslOptions),
                 lists:ukeysort(1, DefSslOptions)
             ),
+            EffectiveSslOpts1 = add_cacerts(EffectiveSslOpts0),
+            EffectiveSslOpts = add_default_pkix_verify_hostname_match_fun_https(EffectiveSslOpts1),
             EffectiveTcpOptions ++ EffectiveSslOpts;
         false ->
             EffectiveTcpOptions
@@ -972,3 +974,36 @@ fix_inet_options(Options) ->
                 end;
             (Option) -> {true, Option}
         end, Options).
+
+-ifdef(cacerts).
+add_cacerts(ConnOpts) ->
+    case proplists:get_value(cacerts, ConnOpts) of
+        undefined ->
+            case proplists:get_value(verify, ConnOpts) of
+                verify_none ->
+                    %% don't retrieve system certificates if verify option
+                    %% is explicitly set to verify_none.
+                    ConnOpts;
+                _ ->
+                    %% Calling the `public_key:cacerts_get()` can be avoided
+                    %% if either {cacerts, ...} or {verify, verify_none} are
+                    %% configured
+                    [{cacerts, public_key:cacerts_get()} | ConnOpts]
+            end;
+        _ -> ConnOpts
+    end.
+-else.
+add_cacerts(ConnOpts) -> ConnOpts.
+-endif.
+
+-ifdef(hostname_match_fun_https).
+add_default_pkix_verify_hostname_match_fun_https(ConnOpts) ->
+    case proplists:get_value(customize_hostname_check, ConnOpts) of
+        undefined ->
+            [{customize_hostname_check, [{match_fun, public_key:pkix_verify_hostname_match_fun(https)}]} | ConnOpts];
+        _ ->
+            ConnOpts
+    end.
+-else.
+add_default_pkix_verify_hostname_match_fun_https(ConnOpts) -> ConnOpts.
+-endif.

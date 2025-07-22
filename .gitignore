@@ -1,4 +1,6 @@
 ebin/*
+_build
+rebar.lock
 
 doc/edoc-info
 doc/*.html
@@ -8,6 +10,7 @@ util/*.beam
 cover_report/
 test/*.beam
 test/*.log
+TEST-*
 
 .eunit
 
